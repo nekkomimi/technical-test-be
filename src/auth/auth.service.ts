@@ -5,22 +5,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LoginDto } from './dto/login.dto';
-import { hashPassword } from '../core/hash_password';
+
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
-import { ISession } from './interface/session.interface';
 import { Model } from 'mongoose';
 import { IUsers } from '../users/interface/users.interface';
-import { SessionStatus } from './schema/session.schema';
+import { LoginDto } from './dto/login.dto';
+import { hashPassword } from '../core/hash_password';
+import { ISession } from './interface/session.interface';
+import { Session } from './schema/session.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    @InjectModel('Session') private sessionModel: Model<ISession>,
     @InjectModel('Users') private usersModel: Model<IUsers>,
+    @InjectModel('Session') private sessionModel: Model<ISession>,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -43,89 +44,26 @@ export class AuthService {
       throw new BadRequestException('Wrong email or password');
     }
 
-    const newRefreshToken = randomUUID();
+    const session = new Session();
+    session.refresh_token = randomUUID();
+    session.users = existUsers;
+    session.status = 'active';
 
-    const session = await new this.sessionModel({
-      refresh_token: newRefreshToken,
-      status: SessionStatus.active,
-      users: existUsers,
-    }).save();
+    const newSession = await this.sessionModel.create(session);
 
     const accessToken = this.jwtService.sign(
       {
         id: existUsers.id,
-        sessionId: session.id,
+        session_id: newSession.id,
       },
       {
         expiresIn: '1d',
       },
     );
 
-    const refresh_token = newRefreshToken;
-
     return {
       access_token: accessToken,
-      refresh_token,
+      refresh_token: newSession.refresh_token,
     };
   }
-
-  // async logout(id: string) {
-  //   const session = await this.prisma.sessions.findFirst({
-  //     where: {
-  //       id,
-  //     },
-  //   });
-  //
-  //   if (!session) {
-  //     throw new NotFoundException('Session does not exist');
-  //   }
-  //
-  //   await this.prisma.sessions.updateMany({
-  //     where: {
-  //       id,
-  //     },
-  //     data: {
-  //       status: 'INACTIVE',
-  //     },
-  //   });
-  // }
-  //
-  // async refreshToken(dataRefreshToken: string) {
-  //   const session = await this.prisma.sessions.findFirst({
-  //     where: {
-  //       refresh_token: {
-  //         equals: dataRefreshToken,
-  //       },
-  //       status: 'ACTIVE',
-  //     },
-  //     include: {
-  //       users: true,
-  //     },
-  //   });
-  //
-  //   if (!session) {
-  //     throw new HttpException(
-  //       {
-  //         statusCode: HttpStatus.NOT_FOUND,
-  //         error: 'refresh token not found',
-  //       },
-  //       HttpStatus.NOT_FOUND,
-  //     );
-  //   }
-  //
-  //   const accessToken = this.jwtService.sign(
-  //     {
-  //       id: session.users.id,
-  //       session_id: session.id,
-  //       role: session.users.role,
-  //     },
-  //     {
-  //       expiresIn: '7d',
-  //     },
-  //   );
-  //
-  //   return {
-  //     access_token: accessToken,
-  //   };
-  // }
 }

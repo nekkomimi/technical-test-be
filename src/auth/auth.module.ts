@@ -1,4 +1,3 @@
-/* eslint-disable linebreak-style */
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -7,27 +6,30 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtStrategy } from '../core/jwt.strategy';
 import { JwtAuthGuard } from '../core/jwt-auth.guard';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SessionSchema } from './schema/session.schema';
 import { UsersSchema } from '../users/schema/users.schema';
+import { SessionSchema } from './schema/session.schema';
+import { ConfigModule } from '@nestjs/config';
+
 @Module({
   imports: [
-    JwtModule.register({
-      global: true,
-      secret: process.env.JWT_PUBLIC_KEY,
-      signOptions: {
-        expiresIn: '7d',
-      },
-    }),
+    ConfigModule.forRoot(),
     MongooseModule.forFeature([
-      {
-        name: 'Session',
-        schema: SessionSchema,
-      },
       {
         name: 'Users',
         schema: UsersSchema,
       },
+      {
+        name: 'Session',
+        schema: SessionSchema,
+      },
     ]),
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_PUBLIC_KEY,
+      signOptions: {
+        expiresIn: '24h',
+      },
+    }),
   ],
   controllers: [AuthController],
   providers: [
