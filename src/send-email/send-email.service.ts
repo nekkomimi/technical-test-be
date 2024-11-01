@@ -26,4 +26,12 @@ export class SendEmailService {
       data,
     };
   }
+
+  async deleteById(id: string) {
+    return await this.sendEmailModel.findByIdAndDelete(id);
+  }
+
+  async update(id: string, payload: CreateSendEmailDto) {
+    return await this.sendEmailModel.findByIdAndUpdate(id, payload);
+  }
 }
